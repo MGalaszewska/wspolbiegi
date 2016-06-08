@@ -87,7 +87,7 @@ int sprawdz_czy_dotkniety(player gracz, int x, int y, circle *circles) {
 	for(i=0; i<SIZE; i++) {
 		if(x >= circles[i].x-circles[i].size && x <= circles[i].x+circles[i].size
 		&& y >= circles[i].y-circles[i].size && y <= circles[i].y+circles[i].size) {
-			gracz.points+=1;
+			gracz.points+=2;
 			XSetForeground(mydisplay,mygc,mycolor3.pixel);
 			XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
 			char napis[2];
