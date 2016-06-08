@@ -41,7 +41,10 @@ int xw, yw, xw1, yw1;
 struct buffer *bufw;
 int bufsize=sizeof(struct buffer);
 
-int player_id;
+typedef struct player {
+	int player_id;
+	int points;
+} player;
 
 typedef struct circle {
 	int x;
@@ -51,6 +54,8 @@ typedef struct circle {
 	int yn;
 	int number;
 }circle;
+
+circle *circles;
 
 int getrand(int min, int max) {
 	return (rand()%(max-min)+min);
@@ -77,6 +82,24 @@ struct sembuf bufor_dajacy_dostep2 = {1, 1, 0};
 
 int nr_pid;
 key_t klucz_pamieci;
+
+int sprawdz_czy_dotkniety(player gracz, int x, int y, circle *circles) {
+	for(i=0; i<SIZE; i++) {
+		if(x >= circles[i].x-circles[i].size && x <= circles[i].x+circles[i].size
+		&& y >= circles[i].y-circles[i].size && y <= circles[i].y+circles[i].size) {
+			gracz.points+=1;
+			XSetForeground(mydisplay,mygc,mycolor3.pixel);
+			XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
+			char napis[2];
+		    sprintf(napis, "%d", i);
+		    XSetForeground(mydisplay,mygc,mycolor1.pixel);
+		    XDrawString(mydisplay, mywindow, mygc, circles[i].xn, circles[i].yn, napis, strlen(napis));
+		    circles[i].number = i;
+			break;
+		}
+	}
+	return gracz.points;
+}
 
 void *reader(void *argum) {
    struct buffer *buf;
@@ -114,7 +137,7 @@ void *reader(void *argum) {
    }
 }
 
-int wyswietl(circle circles[SIZE], int player_id) {
+int wyswietl(circle circles[SIZE], player gracz) {
    mydisplay = XOpenDisplay("");
    myscreen = DefaultScreen(mydisplay);
    myvisual = DefaultVisual(mydisplay,myscreen);
@@ -171,26 +194,27 @@ int wyswietl(circle circles[SIZE], int player_id) {
               break;
          
          case ButtonRelease:
-			  if(player_id == 1) {
-		if(semop(semafory, &bufor_dajacy_dostep2, 1) == -1) {
-			perror("Cos poszlo nie tak (operacja dajaca dostep1)\n");
-			exit(1);
-		}
-		if(semop(semafory, &bufor_zabierajacy_dostep1, 1) == -1) {
-			perror("Cos poszlo nie tak (operacja zabierajaca dostep1)\n");
-			exit(1);
-		}
-	}
-	else {
-		if(semop(semafory, &bufor_dajacy_dostep1, 1) == -1) {
-			perror("Cos poszlo nie tak (operacja dajaca dostep1)\n");
-			exit(1);
-		}
-		if(semop(semafory, &bufor_zabierajacy_dostep2, 1) == -1) {
-			perror("Cos poszlo nie tak (operacja zabierajaca dostep2)\n");
-			exit(1);
-		}
-	}
+			  if(gracz.player_id == 1) {
+				if(semop(semafory, &bufor_dajacy_dostep2, 1) == -1) {
+					perror("Cos poszlo nie tak (operacja dajaca dostep1)\n");
+					exit(1);
+				}
+				if(semop(semafory, &bufor_zabierajacy_dostep1, 1) == -1) {
+					perror("Cos poszlo nie tak (operacja zabierajaca dostep1)\n");
+					exit(1);
+				}
+			}
+			else {
+				if(semop(semafory, &bufor_dajacy_dostep1, 1) == -1) {
+					perror("Cos poszlo nie tak (operacja dajaca dostep1)\n");
+					exit(1);
+				}
+				if(semop(semafory, &bufor_zabierajacy_dostep2, 1) == -1) {
+					perror("Cos poszlo nie tak (operacja zabierajaca dostep2)\n");
+					exit(1);
+				}
+			}
+			printf("%d\n", sprawdz_czy_dotkniety(gracz, xw, yw, circles));
 			  break;
 
          case MotionNotify:
@@ -247,15 +271,21 @@ int wyswietl(circle circles[SIZE], int player_id) {
 int main(int argc, char **argv) {
 srand(time(NULL));
 
+player gracz;
+
+FILE *coords, *coords2;
+
 int nr_pid = getpid();
 key_t klucz_pamieci = ftok("wejscie", 7);
 
-player_id = 1;
-//TWORZENIE PAMIECI DZIELONEJ
+gracz.player_id = 1;
+gracz.points = 0;
+
 pamiec = shmget(SEM_ID, 1024, 0777|IPC_CREAT|IPC_EXCL);
 
 if(pamiec == -1){
-	player_id = 2;
+	gracz.player_id = 2;
+	gracz.points = 0;
 }	
 
 pamiec = shmget(SEM_ID, 1024, 0777|IPC_CREAT);
@@ -265,14 +295,7 @@ if(semafory == -1) {
 	perror("Blad podczas tworzenia semaforow\n");
 	exit(1);
 }
-//X=>1
-//0=>2
-/*
-struct sembuf bufor_zabierajacy_dostep1 = {0, -1, 0};
-struct sembuf bufor_dajacy_dostep1 = {0, 1, 0};
-struct sembuf bufor_zabierajacy_dostep2 = {1, -1, 0};
-struct sembuf bufor_dajacy_dostep2 = {1, 1, 0};
-*/
+
 adres = shmat(pamiec, 0, 0);
 
 if(semctl(semafory, 0, SETVAL, (int)0) == -1) {
@@ -287,20 +310,8 @@ if(semctl(semafory, 1, SETVAL, (int)0) == -1) {
 shared_var = (dzielona*)adres;
 shared_var->circles = malloc(sizeof(circle)*SIZE);
 
-if(player_id == 1) {
-	wyswietl(shared_var->circles, player_id);
-} else {
-	if(semop(semafory, &bufor_zabierajacy_dostep2, 1) == -1) {
-		perror("Cos poszlo nie tak (operacja zabierajaca2)");
-		exit(1);
-	}
-}
-//PAMIEC DZIELONA
-/*
-int a, b, c, d, e;
-//RYSOWANIE PLANSZ
-if((semafory = semget(klucz, 2, 0777|IPC_CREAT|IPC_EXCL)) != -1) {
-  coords = fopen("coords.txt", "w+");
+if(gracz.player_id == 1) {
+	coords = fopen("coords.txt", "w+");
   int x=0;
   int y=0;
   i=0;
@@ -321,10 +332,8 @@ if((semafory = semget(klucz, 2, 0777|IPC_CREAT|IPC_EXCL)) != -1) {
 	  }
     }
     fclose(coords);
-	player_id = 1;
+	wyswietl(shared_var->circles, gracz);
 } else {
-	semafory = semget(klucz, 2, 0777|IPC_CREAT);
-	player_id = 2;
 	i=0;
 	coords2 = fopen("coords.txt", "r+");
 	while(i<SIZE) {
@@ -335,36 +344,14 @@ if((semafory = semget(klucz, 2, 0777|IPC_CREAT|IPC_EXCL)) != -1) {
 			}
 		}
 	}
+	wyswietl(shared_var->circles, gracz);
 	fclose(coords2);
-}
-*/
-/*
-while(1) {
-	wyswietl(shared_var->circles);
-	if(player_id == 1) {
-		if(semop(semafory, &bufor_dajacy_dostep2, 1) == -1) {
-			perror("Cos poszlo nie tak (operacja dajaca dostep1)\n");
-			exit(1);
-		}
-		if(semop(semafory, &bufor_zabierajacy_dostep1, 1) == -1) {
-			perror("Cos poszlo nie tak (operacja zabierajaca dostep1)\n");
-			exit(1);
-		}
+	if(semop(semafory, &bufor_zabierajacy_dostep2, 1) == -1) {
+		perror("Cos poszlo nie tak (operacja zabierajaca2)");
+		exit(1);
 	}
-	else {
-		if(semop(semafory, &bufor_dajacy_dostep1, 1) == -1) {
-			perror("Cos poszlo nie tak (operacja dajaca dostep1)\n");
-			exit(1);
-		}
-		if(semop(semafory, &bufor_zabierajacy_dostep2, 1) == -1) {
-			perror("Cos poszlo nie tak (operacja zabierajaca dostep2)\n");
-			exit(1);
-		}
-	}
-	wyswietl(shared_var->circles);
 }
-*/
-wyswietl(shared_var->circles, player_id);
+
 if(semctl(semafory, 1, IPC_RMID, 0) == -1) {
 	perror("Cos poszlo nie tak (semctl2)\n");
 	exit(1);
