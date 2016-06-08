@@ -1,3 +1,4 @@
+#define _REENTRANT
 #include <X11/Xlib.h>
 #include <X11/X.h>
 #include <stdio.h>
@@ -87,7 +88,7 @@ int sprawdz_czy_dotkniety(player gracz, int x, int y, circle *circles) {
 	for(i=0; i<SIZE; i++) {
 		if(x >= circles[i].x-circles[i].size && x <= circles[i].x+circles[i].size
 		&& y >= circles[i].y-circles[i].size && y <= circles[i].y+circles[i].size) {
-			gracz.points+=2;
+			gracz.points+=1;
 			XSetForeground(mydisplay,mygc,mycolor3.pixel);
 			XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
 			char napis[2];
@@ -269,6 +270,7 @@ int wyswietl(circle circles[SIZE], player gracz) {
 }
 
 int main(int argc, char **argv) {
+XInitThreads();
 srand(time(NULL));
 
 player gracz;
