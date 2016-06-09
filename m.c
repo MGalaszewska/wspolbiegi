@@ -1,3 +1,17 @@
+/*	tu nie wszystko działa tak, jak należy
+	kółko robi się czerwone, kiedy zostaje berkiem
+	ale po chwili przestaje być czerwone
+	albo i nie
+	nie wiem
+	ciężko to stwierdzić, jak gra tylko jedna osoba
+	ale czasami działa
+	chyba
+	nie chcę już tego robić
+	ale jak zdążę, to to naprawię
+	ale najpierw potato
+	jebać współbiegi :|
+	bez odbioru.
+*/
 #include <X11/Xlib.h>
 #include <X11/X.h>
 #include <stdio.h>
