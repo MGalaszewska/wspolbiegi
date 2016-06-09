@@ -11,7 +11,7 @@
 #include <sys/sem.h>
 #include <sys/stat.h>
 
-const int SEM_ID = 9432;
+const int SEM_ID = 9431;
 
 Display *mydisplay;
 Window mywindow;
@@ -22,7 +22,7 @@ Visual *myvisual;
 int mydepth;
 int myscreen;
 Colormap mycolormap;
-XColor mycolor,mycolor1, mycolor2, dummy;
+XColor mycolor,mycolor1, mycolor2, mycolor3, dummy;
 XEvent myevent;
 char *myname;
 
@@ -37,6 +37,7 @@ typedef struct circle {
 	int size;
 	int ID;
 	bool Gracz_w_grze;
+	bool czy_berek;
 }circle;
 
 int id;
@@ -48,30 +49,51 @@ void dostepni_gracze(circle *circles)
 	{
 		circles[i].Gracz_w_grze = false;
 		circles[i].ID = i;
+//printf("Miejsca zrobione\n");
 	}
 }
 
 int znajdz_wolne_miejsce(circle *circles) {
 	int i;
 	for(i=0; i<6; i++) {
+		circles[i].ID = i;
 		if(circles[i].Gracz_w_grze == false) {
 			circles[i].Gracz_w_grze = true;
 			break;
 		}
-	} return i;
+	} //printf("zajete: %d\n", i);
+	  return i;
 }
 
-void pokaz_wszystkich(circle *circles) {
+void pokaz_wszystkich(circle *circles, int id) {
 	int i;
 	for(i=0; i<6; i++) {
 		if(circles[i].Gracz_w_grze == true) {
-			circles[id].x = 100;
-			circles[id].y = 100;
-			circles[id].size = 60;
-			XSetForeground(mydisplay,mygc,mycolor2.pixel);
-			XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
-			XFlush(mydisplay);
+//			circles[i].x = 100;
+//			circles[i].y = 100;
+//			circles[i].size = 60;
+			if(i != id) {
+			  XSetForeground(mydisplay,mygc,mycolor2.pixel);
+printf("%d %d %d\n", id, circles[i].x, circles[i].y);
+			  XFillArc(mydisplay, mywindow, mygc, circles[i].x, circles[i].y, circles[i].size, circles[i].size, 0, 360*64);
+			  XFlush(mydisplay);
+			}
 		}
+	}
+}
+
+void sprawdz(circle *circles, int id) {
+	int i;
+	for(i=0; i<6; i++) {
+	   if(circles[i].Gracz_w_grze == true && i != id) {
+		if(circles[id].x >= circles[i].x-circles[i].size && circles[id].x <= circles[i].x+circles[i].size &&
+		   circles[id].y >= circles[i].y-circles[i].size && circles[id].y <= circles[i].y+circles[i].size) {
+			usleep(7500);
+			XSetForeground(mydisplay, mygc, mycolor3.pixel);
+			circles[i].czy_berek = 1;
+			XFillArc(mydisplay, mywindow, mygc, circles[i].x, circles[i].y, circles[i].size, circles[i].size, 0, 360*64);
+		}
+	   }
 	}
 }
 
@@ -93,11 +115,11 @@ int wyswietl(circle *circles, int id) {
          XAllocNamedColor(mydisplay,mycolormap,"blue",&mycolor,&dummy);
          XAllocNamedColor(mydisplay,mycolormap,"white",&mycolor1,&dummy);
          XAllocNamedColor(mydisplay,mycolormap,"black",&mycolor2,&dummy);
+	 XAllocNamedColor(mydisplay,mycolormap,"red",&mycolor3,&dummy);
          myname="Berek";
    XStoreName(mydisplay,mywindow,myname);
    XMapWindow(mydisplay,mywindow);
    mygc = DefaultGC(mydisplay,myscreen);
-   circles = malloc(sizeof(circle));
    while (1)
    {
 	   if(XPending(mydisplay) > 0) {
@@ -106,26 +128,33 @@ int wyswietl(circle *circles, int id) {
 		  {
 			 case Expose:
 				  XSetFunction(mydisplay,mygc,GXcopy);
+if(circles[id].czy_berek == 1 || id == 0) XSetForeground(mydisplay,mygc,mycolor3.pixel);
 				  XSetForeground(mydisplay,mygc,mycolor.pixel);
 				  circles[id].x = 100;
 				  circles[id].y = 100;
 				  circles[id].size = 60;
 				  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
-				  pokaz_wszystkich(circles);
+				  pokaz_wszystkich(circles, id);
+int i; for(i=0; i<6; i++) {printf("%d %d %d\n", circles[i].ID, circles[i].x, circles[i].y); }
 				  XFlush(mydisplay);
 				  break;
-				  
+
 			  case KeyPress:
-				  //printf("%x\n", myevent.xkey.keycode);
+//				  printf("%x\n", myevent.xkey.keycode);
 				  //EXIT
+XSetForeground(mydisplay, mygc, mycolor1.pixel);
+XFillRectangle(mydisplay, mywindow, mygc, 0, 0, 600, 600);
+				  pokaz_wszystkich(circles, id);
+sprawdz(circles, id);
 				  if(myevent.xkey.keycode == 0x09) {
 					  XCloseDisplay(mydisplay);
 					  shmdt(adres);
-					  shmctl(pamiec, IPC_RMID, 0);
+					  shmctl(pamiec, IPC_RMID, NULL);
 					  exit(0);
 				  }
 				  //UP
-				  if(myevent.xkey.keycode == 0x6f) {
+				  if(myevent.xkey.keycode == 0x62) {//0x6f) {
+if(circles[id].czy_berek == 1) XSetForeground(mydisplay,mygc,mycolor3.pixel);
 					  XSetForeground(mydisplay,mygc,mycolor1.pixel);
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
 					  XSetForeground(mydisplay,mygc,mycolor.pixel);
@@ -134,7 +163,8 @@ int wyswietl(circle *circles, int id) {
 					  XFlush(mydisplay);
 				  }
 				  //RIGHT
-				  if(myevent.xkey.keycode == 0x72) {
+				  if(myevent.xkey.keycode == 0x66) {//0x72) {
+if(circles[id].czy_berek == 1) XSetForeground(mydisplay,mygc,mycolor3.pixel);
 					  XSetForeground(mydisplay,mygc,mycolor1.pixel);
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
 					  XSetForeground(mydisplay,mygc,mycolor.pixel);
@@ -143,7 +173,8 @@ int wyswietl(circle *circles, int id) {
 					  XFlush(mydisplay);
 				  }
 				  //LEFT
-				  if(myevent.xkey.keycode == 0x71) {
+				  if(myevent.xkey.keycode == 0x64) {//0x71) {
+if(circles[id].czy_berek == 1) XSetForeground(mydisplay,mygc,mycolor3.pixel);
 					  XSetForeground(mydisplay,mygc,mycolor1.pixel);
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
 					  XSetForeground(mydisplay,mygc,mycolor.pixel);
@@ -152,14 +183,15 @@ int wyswietl(circle *circles, int id) {
 					  XFlush(mydisplay);
 				  }
 				  //DOWN
-				  if(myevent.xkey.keycode == 0x74) {
+				  if(myevent.xkey.keycode == 0x68) {//0x74) {
+if(circles[id].czy_berek == 1) XSetForeground(mydisplay,mygc,mycolor3.pixel);
 					  XSetForeground(mydisplay,mygc,mycolor1.pixel);
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
 					  XSetForeground(mydisplay,mygc,mycolor.pixel);
 					  circles[id].y += 5;
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
 					  XFlush(mydisplay);
-				  }			  
+				  }
 			  break;
 		}
 	}
@@ -167,10 +199,10 @@ int wyswietl(circle *circles, int id) {
 }
 
 int main(int argc, char **argv) {
-	
+
 circle *adres;
 
-key_t klucz_pamieci = ftok("wejscie", 7);
+//key_t klucz_pamieci = ftok("wejscie", 7);
 
 id = 0;
 pamiec = shmget(SEM_ID, 1024, 0777|IPC_CREAT|IPC_EXCL);
@@ -189,6 +221,6 @@ if(id == 0) {
 	id = znajdz_wolne_miejsce(adres);
 	printf("%d\n", id);
 	wyswietl(adres, id);
-	
+
 	return 0;
 }
