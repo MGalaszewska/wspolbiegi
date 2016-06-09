@@ -53,6 +53,7 @@ typedef struct circle {
 	int xn;
 	int yn;
 	int number;
+	int points;
 }circle;
 
 typedef struct all {
@@ -89,7 +90,7 @@ int sprawdz_czy_dotkniety(player gracz, int x, int y, circle *circles) {
 	for(i=0; i<SIZE; i++) {
 		if(x >= circles[i].x-circles[i].size && x <= circles[i].x+circles[i].size
 		&& y >= circles[i].y-circles[i].size && y <= circles[i].y+circles[i].size) {
-			gracz.points+=1;
+			circles[gracz.player_id].points+=1;
 			XSetForeground(mydisplay,mygc,mycolor3.pixel);
 			XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
 			char napis[2];
@@ -100,7 +101,7 @@ int sprawdz_czy_dotkniety(player gracz, int x, int y, circle *circles) {
 			break;
 		}
 	}
-	return gracz.points;
+	return circles[gracz.player_id].points;
 }
 
 void *reader(void *argum) {
@@ -195,6 +196,8 @@ int wyswietl(circle *circles, player gracz) {
               break;
          
          case ButtonRelease:
+			  xw1=myevent.xbutton.x;
+              yw1=myevent.xbutton.y;
 			  if(gracz.player_id == 1) {
 				if(semop(semafory, &bufor_dajacy_dostep2, 1) == -1) {
 					perror("Cos poszlo nie tak (operacja dajaca dostep1)\n");
@@ -215,7 +218,7 @@ int wyswietl(circle *circles, player gracz) {
 					exit(1);
 				}
 			}
-			printf("%d: %d\n", gracz.player_id, sprawdz_czy_dotkniety(gracz, xw, yw, circles));
+			printf("%d: %d\n", gracz.player_id, sprawdz_czy_dotkniety(gracz, xw1, yw1, circles));
 			  break;
 
          case MotionNotify:
@@ -311,6 +314,7 @@ if(gracz.player_id == 1) {
 			  adres[i].y = adres[i].yn = getrand(y+size/2, y+150-size);
 			  adres[i].size = size;
 			  adres[i].number = i;
+			  adres[i].points = 0;
 			  i++;
 			  x += 150;
 		  } y += 150; x=0;
