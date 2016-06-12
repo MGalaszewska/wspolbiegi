@@ -47,8 +47,12 @@ void dostepni_gracze(circle *circles)
 	int i;
 	for(i = 0; i < 6; i++)
 	{
-		circles[i].Gracz_w_grze = false;
 		circles[i].ID = i;
+		circles[i].Gracz_w_grze = false;
+		circles[i].czy_berek = false;
+		if(circles[i].ID == 0) {
+			circles[i].czy_berek = true;
+		}
 	}
 }
 
@@ -67,29 +71,41 @@ int znajdz_wolne_miejsce(circle *circles) {
 void pokaz_wszystkich(circle *circles, int id) {
 	int i;
 	for(i=0; i<6; i++) {
-		if(circles[i].Gracz_w_grze == true) {\
-			if(i != id) {
-			  XSetForeground(mydisplay,mygc,mycolor2.pixel);
+		if(circles[i].Gracz_w_grze == true) {
+//			if(i != id) {
 printf("%d %d %d\n", id, circles[i].x, circles[i].y);
+			  if(circles[i].czy_berek == true) { XSetForeground(mydisplay,mygc,mycolor3.pixel); }
+			  else { XSetForeground(mydisplay,mygc,mycolor2.pixel); }
 			  XFillArc(mydisplay, mywindow, mygc, circles[i].x, circles[i].y, circles[i].size, circles[i].size, 0, 360*64);
 			  XFlush(mydisplay);
-			}
+//			}
 		}
 	}
+}
+
+int ilosc_graczy(circle *circles) {
+	int i, ilosc=0;
+	for(i=0; i<6; i++) {
+		if(circles[i].Gracz_w_grze == true) {
+			ilosc++;
+//			printf("%d\n", ilosc);
+		}
+	} return ilosc;
 }
 
 void sprawdz(circle *circles, int id) {
 	int i;
 	for(i=0; i<6; i++) {
-	   if(circles[id].Gracz_w_grze == true && i != id) {
+	   if(circles[id].Gracz_w_grze == true && i != id && ilosc_graczy(circles)>1) {
 		if(circles[id].x >= circles[i].x-circles[i].size && circles[id].x <= circles[i].x+circles[i].size &&
 		   circles[id].y >= circles[i].y-circles[i].size && circles[id].y <= circles[i].y+circles[i].size) {
 			usleep(7500);
-			XSetForeground(mydisplay, mygc, mycolor3.pixel);
+//			XSetForeground(mydisplay, mygc, mycolor3.pixel);
+//			XFillArc(mydisplay, mywindow, mygc, circles[i].x, circles[i].y, circles[i].size, circles[i].size, 0, 360*64);
 			circles[i].czy_berek = true;
 			circles[id].czy_berek = false;
-			XFillArc(mydisplay, mywindow, mygc, circles[i].x, circles[i].y, circles[i].size, circles[i].size, 0, 360*64);
 		}
+			break;
 	   }
 	}
 }
@@ -125,16 +141,16 @@ int wyswietl(circle *circles, int id) {
 		  {
 			 case Expose:
 				  XSetFunction(mydisplay,mygc,GXcopy);
-if(circles[id].czy_berek == 1) XSetForeground(mydisplay,mygc,mycolor3.pixel);
 pokaz_wszystkich(circles, id);
-				  XSetForeground(mydisplay,mygc,mycolor.pixel);
+if(circles[id].czy_berek == true) { XSetForeground(mydisplay,mygc,mycolor3.pixel); }
+				  else { XSetForeground(mydisplay,mygc,mycolor.pixel); }
 				  circles[id].x = 100;
 				  circles[id].y = 100;
 				  circles[id].size = 60;
 //				  pokaz_wszystkich(circles, id);
 				  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
-				  pokaz_wszystkich(circles, id);
-int i; for(i=0; i<6; i++) {printf("%d %d %d\n", circles[i].ID, circles[i].x, circles[i].y); }
+				  //pokaz_wszystkich(circles, id);
+//int i; for(i=0; i<6; i++) {printf("%d %d %d\n", circles[i].ID, circles[i].x, circles[i].y); }
 				  XFlush(mydisplay);
 				  break;
 
@@ -143,8 +159,8 @@ int i; for(i=0; i<6; i++) {printf("%d %d %d\n", circles[i].ID, circles[i].x, cir
 				  //EXIT
 XSetForeground(mydisplay, mygc, mycolor1.pixel);
 XFillRectangle(mydisplay, mywindow, mygc, 0, 0, 600, 600);
-				  pokaz_wszystkich(circles, id);
 sprawdz(circles, id);
+				  pokaz_wszystkich(circles, id);
 				  if(myevent.xkey.keycode == 0x09) {
 					  XCloseDisplay(mydisplay);
 					  shmdt(adres);
@@ -152,41 +168,45 @@ sprawdz(circles, id);
 					  exit(0);
 				  }
 				  //UP
-				  if(myevent.xkey.keycode == 0x62) {//0x6f) {
-if(circles[id].czy_berek == 1) XSetForeground(mydisplay,mygc,mycolor3.pixel);
+				  if(myevent.xkey.keycode == 0x6f) {//0x62) {
+					  sprawdz(circles, id);
 					  XSetForeground(mydisplay,mygc,mycolor1.pixel);
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
-					  XSetForeground(mydisplay,mygc,mycolor.pixel);
+					  if(circles[id].czy_berek == true) { XSetForeground(mydisplay,mygc,mycolor3.pixel); }
+					  else {XSetForeground(mydisplay,mygc,mycolor.pixel); }
 					  circles[id].y -= 5;
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
 					  XFlush(mydisplay);
 				  }
 				  //RIGHT
-				  if(myevent.xkey.keycode == 0x66) {//0x72) {
-if(circles[id].czy_berek == 1) XSetForeground(mydisplay,mygc,mycolor3.pixel);
+				  if(myevent.xkey.keycode == 0x72) {//0x66) {
+					  sprawdz(circles, id);
 					  XSetForeground(mydisplay,mygc,mycolor1.pixel);
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
-					  XSetForeground(mydisplay,mygc,mycolor.pixel);
+					  if(circles[id].czy_berek == true) { XSetForeground(mydisplay,mygc,mycolor3.pixel); }
+					  else {XSetForeground(mydisplay,mygc,mycolor.pixel); }
 					  circles[id].x += 5;
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
 					  XFlush(mydisplay);
 				  }
 				  //LEFT
-				  if(myevent.xkey.keycode == 0x64) {//0x71) {
-if(circles[id].czy_berek == 1) XSetForeground(mydisplay,mygc,mycolor3.pixel);
+				  if(myevent.xkey.keycode == 0x71) {//0x64) {
+					  sprawdz(circles, id);
 					  XSetForeground(mydisplay,mygc,mycolor1.pixel);
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
-					  XSetForeground(mydisplay,mygc,mycolor.pixel);
+					  if(circles[id].czy_berek == true) { XSetForeground(mydisplay,mygc,mycolor3.pixel); }
+					  else {XSetForeground(mydisplay,mygc,mycolor.pixel); }
 					  circles[id].x -= 5;
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
 					  XFlush(mydisplay);
 				  }
 				  //DOWN
-				  if(myevent.xkey.keycode == 0x68) {//0x74) {
-if(circles[id].czy_berek == 1) XSetForeground(mydisplay,mygc,mycolor3.pixel);
+				  if(myevent.xkey.keycode == 0x74) {//0x68) {
+					  sprawdz(circles, id);
 					  XSetForeground(mydisplay,mygc,mycolor1.pixel);
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
-					  XSetForeground(mydisplay,mygc,mycolor.pixel);
+					  if(circles[id].czy_berek == true) { XSetForeground(mydisplay,mygc,mycolor3.pixel); }
+					  else {XSetForeground(mydisplay,mygc,mycolor.pixel); }
 					  circles[id].y += 5;
 					  XFillArc(mydisplay, mywindow, mygc, circles[id].x, circles[id].y, circles[id].size, circles[id].size, 0, 360*64);
 					  XFlush(mydisplay);
@@ -200,8 +220,6 @@ if(circles[id].czy_berek == 1) XSetForeground(mydisplay,mygc,mycolor3.pixel);
 int main(int argc, char **argv) {
 
 circle *adres;
-
-//key_t klucz_pamieci = ftok("wejscie", 7);
 
 id = 0;
 pamiec = shmget(SEM_ID, 1024, 0777|IPC_CREAT|IPC_EXCL);
