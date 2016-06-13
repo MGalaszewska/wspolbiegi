@@ -215,11 +215,8 @@ int wyswietl(circle *circles, player gracz) {
    p=getpid();
    
    fdw=open("rysunek",O_WRONLY|O_CREAT|O_APPEND,0700);
-   printf("Plik otwarty do zapisu\n");
    pthread_create(&tid,NULL,reader,(void *) &p);
-   printf("Moj czytelnik utworzony\n");
    pthread_create(&tid1,NULL,reader,NULL);
-   printf("Jego czytelnik utworzony\n");
    
    while (1)
    {
