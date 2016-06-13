@@ -57,6 +57,7 @@ typedef struct circle {
 	int number;
 	bool odwiedzony;
 	int points;
+	bool czerwony;
 }circle;
 
 circle *circles;
@@ -64,6 +65,8 @@ circle *circles;
 int getrand(int min, int max) {
 	return (rand()%(max-min)+min);
 }
+
+int start, koniec;
 
 int semafory, pamiec;
 int id;
@@ -84,21 +87,60 @@ struct sembuf bufor_dajacy_dostep2 = {1, 1, 0};
 int nr_pid;
 key_t klucz_pamieci;
 
-int sprawdz_czy_dotkniety(player gracz, int x, int y, circle *circles) {
+void rysuj(circle *circles) {
+	for(i=0; i<SIZE;i++) {
+				  if(i==0) {
+					circles[i].odwiedzony = true;
+					circles[i].czerwony = true;
+					XSetForeground(mydisplay,mygc,mycolor3.pixel);
+					XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
+				} else {
+					if(circles[i].odwiedzony == true) {
+						XSetForeground(mydisplay,mygc,mycolor3.pixel);
+					} else {
+				    XSetForeground(mydisplay,mygc,mycolor.pixel);
+				}
+				    XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
+			  }
+			  circles[i].number = i;
+			  }
+			  XSetForeground(mydisplay,mygc,mycolor1.pixel);
+			  for(i=0; i<SIZE; i++) {
+				  char napis[2];
+				  sprintf(napis, "%d", circles[i].number);
+				  XDrawString(mydisplay, mywindow, mygc, circles[i].xn, circles[i].yn, napis, strlen(napis));
+			  }
+}
+
+int punkt_startowy(int x, int y, circle *circles) {
+	int start;
 	for(i=0; i<SIZE; i++) {
 		if(x >= circles[i].x-circles[i].size && x <= circles[i].x+circles[i].size
 		&& y >= circles[i].y-circles[i].size && y <= circles[i].y+circles[i].size) {
-			circles[gracz.player_id].points+=1;
-			XSetForeground(mydisplay,mygc,mycolor3.pixel);
-			XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
-			char napis[2];
-		    sprintf(napis, "%d", i);
-		    XSetForeground(mydisplay,mygc,mycolor1.pixel);
-		    XDrawString(mydisplay, mywindow, mygc, circles[i].xn, circles[i].yn, napis, strlen(napis));
-		    circles[i].number = i;
+			start = i;
 			break;
 		}
+	} return start;
+}
+
+int punkt_koncowy(int x, int y, circle *circles) {
+	int koniec;
+	for(i=0; i<SIZE; i++) {
+		if(x >= circles[i].x-circles[i].size && x <= circles[i].x+circles[i].size
+		&& y >= circles[i].y-circles[i].size && y <= circles[i].y+circles[i].size) {
+			koniec = i;
+			break;
+		}
+	} return koniec;
 	}
+	
+void oznaczony(circle *circles, int koniec, player gracz) {
+	circles[koniec].odwiedzony = true;
+	circles[koniec].czerwony = true;
+	circles[gracz.player_id].points++;
+}
+
+int daj_punkty(player gracz, circle *circles) {
 	return circles[gracz.player_id].points;
 }
 
@@ -191,12 +233,20 @@ int wyswietl(circle *circles, player gracz) {
               bufw->prev=0;
               bufw->pid=p;
               write(fdw,bufw,bufsize);
+              start = punkt_startowy(xw1, yw1, circles);
               break;
          
          case ButtonRelease:
 			  xw1=myevent.xbutton.x;
               yw1=myevent.xbutton.y;
 			  if(gracz.player_id == 1) {
+				  koniec = punkt_koncowy(xw1, yw1, circles);
+				  if(koniec == start+1 && circles[start].czerwony == true && circles[koniec].czerwony == false) {
+					  oznaczony(circles, koniec, gracz);
+				  }
+				  rysuj(circles);
+				  XFlush(mydisplay);
+				  printf("gracz %d. Punkty: %d\n", gracz.player_id, circles[gracz.player_id].points);
 				if(semop(semafory, &bufor_dajacy_dostep2, 1) == -1) {
 					perror("Cos poszlo nie tak (operacja dajaca dostep1)\n");
 					exit(1);
@@ -205,8 +255,16 @@ int wyswietl(circle *circles, player gracz) {
 					perror("Cos poszlo nie tak (operacja zabierajaca dostep1)\n");
 					exit(1);
 				}
+				rysuj(circles);
 			}
 			else {
+				koniec = punkt_koncowy(xw1, yw1, circles);
+				if(koniec == start+1 && circles[start].czerwony == true && circles[koniec].czerwony == false) {
+					  oznaczony(circles, koniec, gracz);
+				  }
+				rysuj(circles);
+				XFlush(mydisplay);
+				printf("gracz %d. Punkty: %d\n", gracz.player_id, circles[gracz.player_id].points);
 				if(semop(semafory, &bufor_dajacy_dostep1, 1) == -1) {
 					perror("Cos poszlo nie tak (operacja dajaca dostep1)\n");
 					exit(1);
@@ -215,8 +273,8 @@ int wyswietl(circle *circles, player gracz) {
 					perror("Cos poszlo nie tak (operacja zabierajaca dostep2)\n");
 					exit(1);
 				}
+				rysuj(circles);
 			}
-			printf("%d: %d\n", gracz.player_id, sprawdz_czy_dotkniety(gracz, xw1, yw1, circles));
 			  break;
 
          case MotionNotify:
@@ -234,24 +292,8 @@ int wyswietl(circle *circles, player gracz) {
 		  
          case Expose:
               XSetFunction(mydisplay,mygc,GXcopy);
-			  for(i=0; i<SIZE;i++) {
-				  if(i==0) {
-					circles[i].odwiedzony = true;
-					XSetForeground(mydisplay,mygc,mycolor3.pixel);
-					XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
-				} else {
-					circles[i].odwiedzony = false;
-				    XSetForeground(mydisplay,mygc,mycolor.pixel);
-				    XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
-			  }
-			  }
-			  XSetForeground(mydisplay,mygc,mycolor1.pixel);
-			  for(i=0; i<SIZE; i++) {
-				  char napis[2];
-				  sprintf(napis, "%d", circles[i].number);
-				  XDrawString(mydisplay, mywindow, mygc, circles[i].xn, circles[i].yn, napis, strlen(napis));
-			  }
-              XSetForeground(mydisplay,mygc,mycolor2.pixel);
+			  rysuj(circles);
+//              XSetForeground(mydisplay,mygc,mycolor2.pixel);
               XFlush(mydisplay);
               break;
               
@@ -316,6 +358,8 @@ if(gracz.player_id == 1) {
 			  adres[i].size = size;
 			  adres[i].number = i;
 			  adres[i].points = 0;
+			  adres[i].odwiedzony = false;
+			  adres[i].czerwony = false;
 			  i++;
 			  x += 150;
 		  } y += 150; x=0;
