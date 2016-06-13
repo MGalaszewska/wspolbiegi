@@ -144,6 +144,11 @@ int daj_punkty(player gracz, circle *circles) {
 	return circles[gracz.player_id].points;
 }
 
+int odejmij_punkt(circle *circles, player gracz) {
+	circles[gracz.player_id].points--;
+	return circles[gracz.player_id].points;
+}
+
 void *reader(void *argum) {
    struct buffer *buf;
    int xr,yr,xr1,yr1;
@@ -151,11 +156,8 @@ void *reader(void *argum) {
 
    buf=(struct buffer *) malloc(bufsize);
    while (!(fd=open("rysunek",O_RDONLY,0700)));
-//   printf("Plik otwarty do odczytu\n");
    while (1) {  
       if (read(fd,buf,bufsize)>0) {
-//         printf("Odczytano wspolrzedne: %5d, %5d\n",buf->x,buf->y);
-//         printf("pid= %5d p= %5d argum= %8d\n",buf->pid,p,(int)argum);
          if (((buf->pid==p)&&(argum!=NULL))||((buf->pid!=p)&&(argum==NULL))) {
             pthread_mutex_lock(&lock);
             XSetForeground(mydisplay,mygc,mycolor2.pixel);
@@ -227,7 +229,6 @@ int wyswietl(circle *circles, player gracz) {
 		  case ButtonPress:
               xw1=myevent.xbutton.x;
               yw1=myevent.xbutton.y;
-//              printf("button: %3d  %3d\n",xw1,yw1);
               bufw->x=xw1;
               bufw->y=yw1;
               bufw->prev=0;
@@ -243,6 +244,9 @@ int wyswietl(circle *circles, player gracz) {
 				  koniec = punkt_koncowy(xw1, yw1, circles);
 				  if(koniec == start+1 && circles[start].czerwony == true && circles[koniec].czerwony == false) {
 					  oznaczony(circles, koniec, gracz);
+				  }
+				  else {
+					  odejmij_punkt(circles, gracz);
 				  }
 				  rysuj(circles);
 				  XFlush(mydisplay);
@@ -262,6 +266,9 @@ int wyswietl(circle *circles, player gracz) {
 				if(koniec == start+1 && circles[start].czerwony == true && circles[koniec].czerwony == false) {
 					  oznaczony(circles, koniec, gracz);
 				  }
+				  else {
+					  odejmij_punkt(circles, gracz);
+				  }
 				rysuj(circles);
 				XFlush(mydisplay);
 				printf("gracz %d. Punkty: %d\n", gracz.player_id, circles[gracz.player_id].points);
@@ -280,7 +287,6 @@ int wyswietl(circle *circles, player gracz) {
          case MotionNotify:
               xw=myevent.xmotion.x;
               yw=myevent.xmotion.y;
-//              printf("motion: %3d  %3d\n",xw,yw);
               bufw->x=xw;
               bufw->y=yw;
               bufw->prev=1;
@@ -293,7 +299,6 @@ int wyswietl(circle *circles, player gracz) {
          case Expose:
               XSetFunction(mydisplay,mygc,GXcopy);
 			  rysuj(circles);
-//              XSetForeground(mydisplay,mygc,mycolor2.pixel);
               XFlush(mydisplay);
               break;
               
@@ -365,6 +370,7 @@ if(gracz.player_id == 1) {
 		  } y += 150; x=0;
 	  }
     }
+    
 	wyswietl(adres, gracz);
 }
 else {
