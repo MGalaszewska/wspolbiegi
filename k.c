@@ -15,8 +15,8 @@
 #define MINSIZE 60
 #define MAXSIZE 80
 #define SIZE 16
-#define shm_klucz 133
-#define klucz 13
+//#define shm_klucz 133
+//#define klucz 13
 
 Display *mydisplay;
 Window mywindow;
@@ -60,7 +60,7 @@ typedef struct circle {
 	bool czerwony;
 }circle;
 
-circle *circles;
+//circle *circles;
 
 int getrand(int min, int max) {
 	return (rand()%(max-min)+min);
@@ -76,40 +76,40 @@ const int SEM_ID = 9432;
 pthread_t tid,tid1;
 pthread_mutex_t lock=PTHREAD_MUTEX_INITIALIZER;
 
-void end() {
-	pthread_mutex_destroy(&lock);
-}
 struct sembuf bufor_zabierajacy_dostep1 = {0, -1, 0};
 struct sembuf bufor_dajacy_dostep1 = {0, 1, 0};
 struct sembuf bufor_zabierajacy_dostep2 = {1, -1, 0};
 struct sembuf bufor_dajacy_dostep2 = {1, 1, 0};
 
-int nr_pid;
-key_t klucz_pamieci;
+//int nr_pid;
+//key_t klucz_pamieci;
+
+void end() {
+	pthread_mutex_destroy(&lock);
+}
 
 void rysuj(circle *circles) {
 	for(i=0; i<SIZE;i++) {
-				  if(i==0) {
-					circles[i].odwiedzony = true;
-					circles[i].czerwony = true;
-					XSetForeground(mydisplay,mygc,mycolor3.pixel);
-					XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
-				} else {
-					if(circles[i].odwiedzony == true) {
-						XSetForeground(mydisplay,mygc,mycolor3.pixel);
-					} else {
-				    XSetForeground(mydisplay,mygc,mycolor.pixel);
-				}
-				    XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
-			  }
-			  circles[i].number = i;
-			  }
-			  XSetForeground(mydisplay,mygc,mycolor1.pixel);
-			  for(i=0; i<SIZE; i++) {
-				  char napis[2];
-				  sprintf(napis, "%d", circles[i].number);
-				  XDrawString(mydisplay, mywindow, mygc, circles[i].xn, circles[i].yn, napis, strlen(napis));
-			  }
+	  if(i==0) {
+		circles[i].odwiedzony = true;
+		circles[i].czerwony = true;
+		XSetForeground(mydisplay,mygc,mycolor3.pixel);
+		XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
+	} else {
+		if(circles[i].odwiedzony == true) {
+			XSetForeground(mydisplay,mygc,mycolor3.pixel);
+		} else {
+		XSetForeground(mydisplay,mygc,mycolor.pixel);
+	}
+		XFillArc(mydisplay, mywindow, mygc, circles[i].x-(circles[i].size/2), circles[i].y-(circles[i].size/2), circles[i].size, circles[i].size, 0, 360*64);
+  }
+  }
+  XSetForeground(mydisplay,mygc,mycolor1.pixel);
+  for(i=0; i<SIZE; i++) {
+	  char napis[2];
+	  sprintf(napis, "%d", circles[i].number);
+	  XDrawString(mydisplay, mywindow, mygc, circles[i].xn, circles[i].yn, napis, strlen(napis));
+  }
 }
 
 int punkt_startowy(int x, int y, circle *circles) {
@@ -147,6 +147,16 @@ int daj_punkty(player gracz, circle *circles) {
 int odejmij_punkt(circle *circles, player gracz) {
 	circles[gracz.player_id].points--;
 	return circles[gracz.player_id].points;
+}
+
+void koniec_gry() {
+	semctl(semafory, 0, IPC_RMID, 0);
+    shmdt(adres);
+    shmctl(pamiec, IPC_RMID, NULL);
+    XCloseDisplay(mydisplay);
+    remove("rysunek");
+    end();
+	exit(0);
 }
 
 void *reader(void *argum) {
@@ -241,6 +251,11 @@ int wyswietl(circle *circles, player gracz) {
 				  koniec = punkt_koncowy(xw1, yw1, circles);
 				  if(koniec == start+1 && circles[start].czerwony == true && circles[koniec].czerwony == false) {
 					  oznaczony(circles, koniec, gracz);
+					  if(koniec == SIZE-1) {
+						  printf("Koniec gry.\n");
+						  close(fdw);
+						  koniec_gry();
+					  }
 				  }
 				  else {
 					  odejmij_punkt(circles, gracz);
@@ -262,6 +277,11 @@ int wyswietl(circle *circles, player gracz) {
 				koniec = punkt_koncowy(xw1, yw1, circles);
 				if(koniec == start+1 && circles[start].czerwony == true && circles[koniec].czerwony == false) {
 					  oznaczony(circles, koniec, gracz);
+					  if(koniec == SIZE-1) {
+						  printf("Koniec gry.\n");
+						  close(fdw);
+						  koniec_gry();
+					  }
 				  }
 				  else {
 					  odejmij_punkt(circles, gracz);
@@ -301,14 +321,8 @@ int wyswietl(circle *circles, player gracz) {
               
 			  case KeyPress:
 			  if(myevent.xkey.keycode == 0x09) {
-			  semctl(semafory, 0, IPC_RMID, 0);
-			  shmdt(adres);
-			  shmctl(pamiec, IPC_RMID, NULL);
-              XCloseDisplay(mydisplay);
-              close(fdw);
               remove("rysunek");
-              end();
-              exit(0);
+              koniec_gry();
 		  }
       }
   }
@@ -367,7 +381,13 @@ if(gracz.player_id == 1) {
 		  } y += 150; x=0;
 	  }
     }
-    
+    /*
+    for(i=0; i<SIZE; i++) {
+		int temp = adres[i].number;
+		int random = rand()%SIZE;
+		adres[i].number = adres[random].number;
+		adres[random].number = temp;
+	} */
 	wyswietl(adres, gracz);
 }
 else {
